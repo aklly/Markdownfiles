@@ -191,6 +191,4 @@ key_pressed = cv2.waitKey(0)
 
 ## 梳理并输出数据流程图
 
-![数据流分析](./pic/Ajr.png]
-
-
+![数据流分析](./DataStream.png)
