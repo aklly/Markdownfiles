@@ -7,36 +7,6 @@
   + 每一个小模块解释系统调用的各个参数情况，之后类似的可以直接代过
   + 对于`mmap`,`brk`用于申请内存的情况，或者`futex`等无关数据部分的调用做下简短说明就好
 
-+ 需要统一一个网站画图方便之后合起来，[今天演示用的这个好像可以共同编辑](https://boardmix.cn/app/share/CAE.CI6tqQ0gASoQqcgJ2UD7l5-VRD96Wk7yOTAFQAE/yatEfl)，流程图方块大小按照这个来
-
-  <img src="https://cdn.jsdelivr.net/gh/tsdsnk/imgs@main/img/image-20231006215648308.png" alt="image-20231006215648308" style="zoom:67%;" />
-
-
-
-1. 蔡世荣 	2. 邹腾	3.叶润泽	4.高婷
-
-|                  |      |                  |
-| ---------------- | ---- | ---------------- |
-| train_data       | 1    |                  |
-| test_data        | 2    |                  |
-| train_loader     |      | 无               |
-| test_x           | 2    |                  |
-| test_y           | 2    | 只有一条         |
-| cnn              | 3    | 只有一条         |
-| optimizer        |      | 无               |
-| loss_func        |      | 无               |
-| batch_x, batch_y | 3    |                  |
-| output           | 3    | 大部分都是重复的 |
-| loss             |      | 无               |
-| zero_grad        |      | 无               |
-| backward         | 4    | 大部分重复的     |
-| step             | 4    |                  |
-| save             | 4    |                  |
-
-
-
-
-
 ---
 
 ### 输出部分
