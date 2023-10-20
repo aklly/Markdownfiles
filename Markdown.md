@@ -1,4 +1,4 @@
-# 实验报告
+# 基于机器学习的mnist实验的文件数据流使用监控实验报告
   
 ## 机器学习的基于mnist数据集的torch实验分析，在实验过程中使用数据、产生中间结果、生成和保存最终模型三个工程中对数据的工作流
 
@@ -191,4 +191,80 @@ key_pressed = cv2.waitKey(0)
 
 ## 梳理并输出数据流程图
 
-![数据流分析](./DataStream.png)
+![数据流分析](./Src/Imgs/DataStream.png)
+
+## 实验过程中可能涉及的系统调用和网络调用，eBPF的hook点分析
+
+对实验过程的strace部分例子分析：
+调研方法：小组在网络上搜索pytorch实验中可能产生的系统调用和ebpf的hook点，以及如何查找并且验证，之后采用了strace工具对pytorch训练过程进行了跟踪调研查找产生的系统调用，利用在特定代码位置插入会产生特定系统调用的函数作为分割点，并阅读pytorch源码来验证具体实验流程中pytorch代码所产生系统调用。由系统调用查找Trace points：
+Linux可以通过查看 /sys/kernel/debug/tracing/available_events 文件的内容找到 tracepoint 可监控的事件，
+sudo cat /sys/kernel/debug/tracing/available_events |grep ‘系统调用名称‘
+过滤以匹配包含系统调用名称的行
+
+对实验过程的strace部分例子分析：
+
+![部分产生的系统调用](./Src/Imgs/Analysis.png)
+
+这一系列系统调研对应于实验中下载minist训练集的代码
+
+```python
+# 下载mnist手写数据集
+train_data = torchvision.datasets.MNIST(
+    root='./data/',  # 保存或提取的位置  会放在当前文件夹中
+    train=True,  # true说明是用于训练的数据，false说明是用于测试的数据
+    transform=torchvision.transforms.ToTensor(),  # 转换PIL.Image or numpy.ndarray
+    download=DOWNLOAD_MNIST,  # 已经下载了就不需要下载了
+)
+```
+
+接下来查看pytorch确认mnist类中哪些代码产生了这些调用
+stat("./data/MNIST/processed", 0x7ffc239123c0) = -1 ENOENT (No such file or directory)
+对应于Mnist类中对processed文件的检查
+
+```python
+    def _check_legacy_exist(self):
+        processed_folder_exists = os.path.exists(self.processed_folder)
+        if not processed_folder_exists:
+            return False
+
+        return all(
+            check_integrity(os.path.join(self.processed_folder, file)) for file in (self.training_file, self.test_file)
+        )
+```
+
+stat("./data/MNIST/raw/train-images-idx3-ubyte", {st_mode=S_IFREG|0664, st_size=47040016, ...}) = 0
+对应于Mnist类中对训练数据的加载函数_load_data,到指定的路径下读取图像数据和标签数据
+
+```python
+    def _load_data(self):
+        image_file = f"{'train' if self.train else 't10k'}-images-idx3-ubyte"
+        data = read_image_file(os.path.join(self.raw_folder, image_file))
+
+        label_file = f"{'train' if self.train else 't10k'}-labels-idx1-ubyte"
+        targets = read_label_file(os.path.join(self.raw_folder, label_file))
+
+        return data, targets
+```
+
+openat(AT_FDCWD, "./data/MNIST/raw/train-images-idx3-ubyte", O_RDONLY|O_CLOEXEC) = 4对应于read_sn3_pascalvincent_tensor函数打开目标路径并读取数据
+
+```python
+def read_sn3_pascalvincent_tensor(path: str, strict: bool = True) -> torch.Tensor:
+    """Read a SN3 file in "Pascal Vincent" format (Lush file 'libidx/idx-io.lsh').
+    Argument may be a filename, compressed filename, or file object.
+    """
+    # read
+    with open(path, "rb") as f:
+        data = f.read()
+```
+
+利用sudo cat /sys/kernel/debug/tracing/available_events |grep ‘系统调用名称命令可以打印系统调用对应的trace_point作为ebpf的hook点。
+![command0](Src/Imgs/command0.png)
+![command1](Src/Imgs/command1.png)
+![command2](Src/Imgs/command2.png)
+更多系统调用分析和对应源码的分析，以及相应的bpf的hook点略，可参见下图。
+
+## 梳理并画出实验中Trace points 和 Kprobes 、Kretprobes串连起来的流程图
+
+![流程图](Src/Imgs/ProcessionandHooks.png)
+
